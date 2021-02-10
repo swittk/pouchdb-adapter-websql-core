@@ -2,12 +2,11 @@
   "name": "@craftzdog/pouchdb-adapter-websql-core",
   "version": "7.2.2",
   "description": "Underlying adapter code for WebSQL and SQLite-based PouchDB adapters.",
-  "main": "./lib/index.js",
+  "main": "./src/index.js",
   "keywords": [],
   "author": "Dale Harvey <dale@arandomurl.com>",
   "license": "Apache-2.0",
   "repository": "https://github.com/pouchdb/pouchdb",
-  "jsnext:main": "./lib/index.es.js",
   "dependencies": {
     "pouchdb-adapter-utils": "^7.2.2",
     "pouchdb-binary-utils": "^7.2.2",
@@ -19,7 +18,7 @@
   },
   "module": "./lib/index.es.js",
   "files": [
-    "lib",
+    "src",
     "dist",
     "tonic-example.js"
   ]
