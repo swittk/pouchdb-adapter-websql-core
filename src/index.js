@@ -75,7 +75,7 @@ function fetchAttachmentsIfNecessary(doc, opts, api, txn, cb) {
 
   function fetchAttachment(doc, att) {
     var attObj = doc._attachments[att];
-    var attOpts = {binary: opts.binary, ctx: txn};
+    var attOpts = { binary: opts.binary, ctx: txn };
     api._getAttachment(doc._id, att, attObj, attOpts, function (_, data) {
       doc._attachments[att] = Object.assign(
         pick(attObj, ['digest', 'content_type']),
@@ -103,16 +103,16 @@ var BY_SEQ_STORE_DELETED_INDEX_SQL =
   BY_SEQ_STORE + ' (seq, deleted)';
 var BY_SEQ_STORE_DOC_ID_REV_INDEX_SQL =
   'CREATE UNIQUE INDEX IF NOT EXISTS \'by-seq-doc-id-rev\' ON ' +
-    BY_SEQ_STORE + ' (doc_id, rev)';
+  BY_SEQ_STORE + ' (doc_id, rev)';
 var DOC_STORE_WINNINGSEQ_INDEX_SQL =
   'CREATE INDEX IF NOT EXISTS \'doc-winningseq-idx\' ON ' +
   DOC_STORE + ' (winningseq)';
 var ATTACH_AND_SEQ_STORE_SEQ_INDEX_SQL =
   'CREATE INDEX IF NOT EXISTS \'attach-seq-seq-idx\' ON ' +
-    ATTACH_AND_SEQ_STORE + ' (seq)';
+  ATTACH_AND_SEQ_STORE + ' (seq)';
 var ATTACH_AND_SEQ_STORE_ATTACH_INDEX_SQL =
   'CREATE UNIQUE INDEX IF NOT EXISTS \'attach-seq-digest-idx\' ON ' +
-    ATTACH_AND_SEQ_STORE + ' (digest, seq)';
+  ATTACH_AND_SEQ_STORE + ' (digest, seq)';
 
 var DOC_STORE_AND_BY_SEQ_JOINER = BY_SEQ_STORE +
   '.seq = ' + DOC_STORE + '.winningseq';
@@ -168,41 +168,41 @@ function WebSqlPouch(opts, callback) {
 
     tx.executeSql('ALTER TABLE ' + BY_SEQ_STORE +
       ' ADD COLUMN deleted TINYINT(1) DEFAULT 0', [], function () {
-      tx.executeSql(BY_SEQ_STORE_DELETED_INDEX_SQL);
-      tx.executeSql('ALTER TABLE ' + DOC_STORE +
-        ' ADD COLUMN local TINYINT(1) DEFAULT 0', [], function () {
-        tx.executeSql('CREATE INDEX IF NOT EXISTS \'doc-store-local-idx\' ON ' +
-          DOC_STORE + ' (local, id)');
+        tx.executeSql(BY_SEQ_STORE_DELETED_INDEX_SQL);
+        tx.executeSql('ALTER TABLE ' + DOC_STORE +
+          ' ADD COLUMN local TINYINT(1) DEFAULT 0', [], function () {
+            tx.executeSql('CREATE INDEX IF NOT EXISTS \'doc-store-local-idx\' ON ' +
+              DOC_STORE + ' (local, id)');
 
-        var sql = 'SELECT ' + DOC_STORE + '.winningseq AS seq, ' + DOC_STORE +
-          '.json AS metadata FROM ' + BY_SEQ_STORE + ' JOIN ' + DOC_STORE +
-          ' ON ' + BY_SEQ_STORE + '.seq = ' + DOC_STORE + '.winningseq';
+            var sql = 'SELECT ' + DOC_STORE + '.winningseq AS seq, ' + DOC_STORE +
+              '.json AS metadata FROM ' + BY_SEQ_STORE + ' JOIN ' + DOC_STORE +
+              ' ON ' + BY_SEQ_STORE + '.seq = ' + DOC_STORE + '.winningseq';
 
-        tx.executeSql(sql, [], function (tx, result) {
+            tx.executeSql(sql, [], function (tx, result) {
 
-          var deleted = [];
-          var local = [];
+              var deleted = [];
+              var local = [];
 
-          for (var i = 0; i < result.rows.length; i++) {
-            var item = result.rows.item(i);
-            var seq = item.seq;
-            var metadata = JSON.parse(item.metadata);
-            if (isDeleted(metadata)) {
-              deleted.push(seq);
-            }
-            if (isLocalId(metadata.id)) {
-              local.push(metadata.id);
-            }
-          }
-          tx.executeSql('UPDATE ' + DOC_STORE + 'SET local = 1 WHERE id IN ' +
-            qMarks(local.length), local, function () {
-            tx.executeSql('UPDATE ' + BY_SEQ_STORE +
-              ' SET deleted = 1 WHERE seq IN ' +
-              qMarks(deleted.length), deleted, callback);
+              for (var i = 0; i < result.rows.length; i++) {
+                var item = result.rows.item(i);
+                var seq = item.seq;
+                var metadata = JSON.parse(item.metadata);
+                if (isDeleted(metadata)) {
+                  deleted.push(seq);
+                }
+                if (isLocalId(metadata.id)) {
+                  local.push(metadata.id);
+                }
+              }
+              tx.executeSql('UPDATE ' + DOC_STORE + 'SET local = 1 WHERE id IN ' +
+                qMarks(local.length), local, function () {
+                  tx.executeSql('UPDATE ' + BY_SEQ_STORE +
+                    ' SET deleted = 1 WHERE seq IN ' +
+                    qMarks(deleted.length), deleted, callback);
+                });
+            });
           });
-        });
       });
-    });
   }
 
   // in this migration, we make all the local docs unversioned
@@ -227,16 +227,16 @@ function WebSqlPouch(opts, callback) {
           var row = rows.shift();
           var rev = JSON.parse(row.data)._rev;
           tx.executeSql('INSERT INTO ' + LOCAL_STORE +
-              ' (id, rev, json) VALUES (?,?,?)',
-              [row.id, rev, row.data], function (tx) {
-            tx.executeSql('DELETE FROM ' + DOC_STORE + ' WHERE id=?',
+            ' (id, rev, json) VALUES (?,?,?)',
+            [row.id, rev, row.data], function (tx) {
+              tx.executeSql('DELETE FROM ' + DOC_STORE + ' WHERE id=?',
                 [row.id], function (tx) {
-              tx.executeSql('DELETE FROM ' + BY_SEQ_STORE + ' WHERE seq=?',
-                  [row.seq], function () {
-                doNext();
-              });
+                  tx.executeSql('DELETE FROM ' + BY_SEQ_STORE + ' WHERE seq=?',
+                    [row.seq], function () {
+                      doNext();
+                    });
+                });
             });
-          });
         }
         doNext();
       });
@@ -399,10 +399,10 @@ function WebSqlPouch(opts, callback) {
   function checkEncoding(tx, cb) {
     // UTF-8 on chrome/android, UTF-16 on safari < 7.1
     tx.executeSql('SELECT HEX("a") AS hex', [], function (tx, res) {
-        var hex = res.rows.item(0).hex;
-        encoding = hex.length === 2 ? 'UTF-8' : 'UTF-16';
-        cb();
-      }
+      var hex = res.rows.item(0).hex;
+      encoding = hex.length === 2 ? 'UTF-8' : 'UTF-16';
+      cb();
+    }
     );
   }
 
@@ -516,15 +516,15 @@ function WebSqlPouch(opts, callback) {
         // so add it.
         tx.executeSql('ALTER TABLE ' + META_STORE +
           ' ADD COLUMN db_version INTEGER', [], function () {
-          // before version 2, this column didn't even exist
-          onGetVersion(tx, 1);
-        });
+            // before version 2, this column didn't even exist
+            onGetVersion(tx, 1);
+          });
       } else { // column exists, we can safely get it
         tx.executeSql('SELECT db_version FROM ' + META_STORE,
           [], function (tx, result) {
-          var dbVersion = result.rows.item(0).db_version;
-          onGetVersion(tx, dbVersion);
-        });
+            var dbVersion = result.rows.item(0).db_version;
+            onGetVersion(tx, dbVersion);
+          });
       }
     });
   }
@@ -586,10 +586,10 @@ function WebSqlPouch(opts, callback) {
 
   function latest(tx, id, rev, callback, finish) {
     var sql = select(
-        SELECT_DOCS,
-        [DOC_STORE, BY_SEQ_STORE],
-        DOC_STORE_AND_BY_SEQ_JOINER,
-        DOC_STORE + '.id=?');
+      SELECT_DOCS,
+      [DOC_STORE, BY_SEQ_STORE],
+      DOC_STORE_AND_BY_SEQ_JOINER,
+      DOC_STORE + '.id=?');
     var sqlArgs = [id];
 
     tx.executeSql(sql, sqlArgs, function (a, results) {
@@ -609,12 +609,12 @@ function WebSqlPouch(opts, callback) {
     var tx = opts.ctx;
     if (!tx) {
       return db.readTransaction(function (txn) {
-        api._get(id, Object.assign({ctx: txn}, opts), callback);
+        api._get(id, Object.assign({ ctx: txn }, opts), callback);
       });
     }
 
     function finish(err) {
-      callback(err, {doc: doc, metadata: metadata, ctx: tx});
+      callback(err, { doc: doc, metadata: metadata, ctx: tx });
     }
 
     var sql;
@@ -672,7 +672,7 @@ function WebSqlPouch(opts, callback) {
     var limit = 'limit' in opts ? opts.limit : -1;
     var offset = 'skip' in opts ? opts.skip : 0;
     var inclusiveEnd = opts.inclusive_end !== false;
-    
+
     var sqlArgs = [];
     var criteria = [];
     var keyChunks = [];
@@ -691,7 +691,7 @@ function WebSqlPouch(opts, callback) {
           keyChunks.push(chunk);
         }
       }
-        
+
     } else if (key !== false) {
       criteria.push(DOC_STORE + '.id = ?');
       sqlArgs.push(key);
@@ -807,7 +807,7 @@ function WebSqlPouch(opts, callback) {
           var doc = {
             id: id,
             key: id,
-            value: {rev: winningRev}
+            value: { rev: winningRev }
           };
           if (opts.include_docs) {
             doc.doc = data;
@@ -842,14 +842,14 @@ function WebSqlPouch(opts, callback) {
         if (keys) {
           keys.forEach(function (key, index) {
             if (!results[index]) {
-              results[index] = {key: key, error: 'not_found'};
+              results[index] = { key: key, error: 'not_found' };
             }
           });
         }
 
       }
 
-      
+
     }, websqlError(callback), function () {
       var returnVal = {
         total_rows: totalRows,
@@ -1000,7 +1000,13 @@ function WebSqlPouch(opts, callback) {
       var data = item.escaped ? unescapeBlob(item.body) :
         parseHexString(item.body, encoding);
       if (opts.binary) {
-        res = binStringToBlob(data, type);
+        // The original implementation simply calls `binStringToBluffer()` (exported as binaryStringToBlobOrBuffer) directly from pouchdb-binary-utils
+        // Importing from `pouchdb-binary-utils`, we get the `index-browser.js` version since apparently React Native is a browser to the libs.
+        // This errors out in React-Native since it creates Blob() from ArrayBuffers, and our Blob() constructor is dumb and doesn't support creating Blobs from ArrayBuffers.
+        // Instead; I'm returning the ArrayBuffer created from `binaryStringToArrayBuffer` taken from `pouchdb-binary-utils`
+        // res = binStringToBlob(data, type);
+        res = binaryStringToArrayBuffer(data);
+        res.type = type;
       } else {
         res = btoa(data);
       }
@@ -1033,7 +1039,7 @@ function WebSqlPouch(opts, callback) {
       tx.executeSql(sql, [docId], function (tx, result) {
         var metadata = safeJsonParse(result.rows.item(0).metadata);
         traverseRevTree(metadata.rev_tree, function (isLeaf, pos,
-                                                           revHash, ctx, opts) {
+          revHash, ctx, opts) {
           var rev = pos + '-' + revHash;
           if (revs.indexOf(rev) !== -1) {
             opts.status = 'missing';
@@ -1095,7 +1101,7 @@ function WebSqlPouch(opts, callback) {
       }
       tx.executeSql(sql, values, function (tx, res) {
         if (res.rowsAffected) {
-          ret = {ok: true, id: id, rev: newRev};
+          ret = { ok: true, id: id, rev: newRev };
           if (opts.ctx) { // return immediately
             callback(null, ret);
           }
@@ -1133,7 +1139,7 @@ function WebSqlPouch(opts, callback) {
         if (!res.rowsAffected) {
           return callback(createError(MISSING_DOC));
         }
-        ret = {ok: true, id: doc._id, rev: '0-0'};
+        ret = { ok: true, id: doc._id, rev: '0-0' };
         if (opts.ctx) { // return immediately
           callback(null, ret);
         }
@@ -1164,9 +1170,26 @@ function WebSqlPouch(opts, callback) {
         delete window.localStorage['_pouch__websqldb_' + api._name];
         delete window.localStorage[api._name];
       }
-      callback(null, {'ok': true});
+      callback(null, { 'ok': true });
     });
   };
 }
 
 export default WebSqlPouch;
+
+/**
+ * Taken from `pouchdb-binary-utils`
+ * And in turn, taken from http://stackoverflow.com/questions/14967647/ (continues on next line)
+ * encode-decode-image-with-base64-breaks-image (2013-04-21)
+ * @param {string} bin The input binary string
+ * @returns {ArrayBuffer}
+ */
+function binaryStringToArrayBuffer(bin) {
+  var length = bin.length;
+  var buf = new ArrayBuffer(length);
+  var arr = new Uint8Array(buf);
+  for (var i = 0; i < length; i++) {
+    arr[i] = bin.charCodeAt(i);
+  }
+  return buf;
+}
