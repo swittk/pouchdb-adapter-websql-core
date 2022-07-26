@@ -31,6 +31,15 @@ import {
   escapeBlob
 } from './utils';
 
+function isHermesEngine() {
+  return !!((global).HermesInternal);
+}
+// According to https://github.com/facebook/react-native/issues/24129#issuecomment-787441412
+// Hermes engine supports NULL characters in strings appropriately!
+function needsEscape() {
+  return !isHermesEngine();
+}
+
 function websqlBulkDocs(dbOpts, req, opts, api, db, websqlChanges, callback) {
   var newEdits = opts.new_edits;
   var userDocs = req.docs;
@@ -113,7 +122,7 @@ function websqlBulkDocs(dbOpts, req, opts, api, db, websqlChanges, callback) {
   }
 
   function writeDoc(docInfo, winningRev, winningRevIsDeleted, newRevIsDeleted,
-                    isUpdate, delta, resultsIdx, callback) {
+    isUpdate, delta, resultsIdx, callback) {
 
     function finish() {
       var data = docInfo.data;
@@ -241,12 +250,12 @@ function websqlBulkDocs(dbOpts, req, opts, api, db, websqlChanges, callback) {
       delete docInfo.metadata.rev;
 
       var sql = isUpdate ?
-      'UPDATE ' + DOC_STORE +
-      ' SET json=?, max_seq=?, winningseq=' +
-      '(SELECT seq FROM ' + BY_SEQ_STORE +
-      ' WHERE doc_id=' + DOC_STORE + '.id AND rev=?) WHERE id=?'
+        'UPDATE ' + DOC_STORE +
+        ' SET json=?, max_seq=?, winningseq=' +
+        '(SELECT seq FROM ' + BY_SEQ_STORE +
+        ' WHERE doc_id=' + DOC_STORE + '.id AND rev=?) WHERE id=?'
         : 'INSERT INTO ' + DOC_STORE +
-      ' (id, winningseq, max_seq, json) VALUES (?,?,?,?);';
+        ' (id, winningseq, max_seq, json) VALUES (?,?,?,?);';
       var metadataStr = safeJsonStringify(docInfo.metadata);
       var params = isUpdate ?
         [metadataStr, seq, winningRev, id] :
@@ -265,7 +274,7 @@ function websqlBulkDocs(dbOpts, req, opts, api, db, websqlChanges, callback) {
 
   function websqlProcessDocs() {
     processDocs(dbOpts.revs_limit, docInfos, api, fetchedDocs, tx,
-                results, writeDoc, opts);
+      results, writeDoc, opts);
   }
 
   function fetchExistingDocs(callback) {
@@ -287,13 +296,13 @@ function websqlBulkDocs(dbOpts, req, opts, api, db, websqlChanges, callback) {
       }
       var id = docInfo.metadata.id;
       tx.executeSql('SELECT json FROM ' + DOC_STORE +
-      ' WHERE id = ?', [id], function (tx, result) {
-        if (result.rows.length) {
-          var metadata = safeJsonParse(result.rows.item(0).json);
-          fetchedDocs.set(id, metadata);
-        }
-        checkDone();
-      });
+        ' WHERE id = ?', [id], function (tx, result) {
+          if (result.rows.length) {
+            var metadata = safeJsonParse(result.rows.item(0).json);
+            fetchedDocs.set(id, metadata);
+          }
+          checkDone();
+        });
     });
   }
 
@@ -303,12 +312,13 @@ function websqlBulkDocs(dbOpts, req, opts, api, db, websqlChanges, callback) {
       if (result.rows.length) { // attachment already exists
         return callback();
       }
+      const shouldEscape = needsEscape();
       // we could just insert before selecting and catch the error,
       // but my hunch is that it's cheaper not to serialize the blob
       // from JS to C if we don't have to (TODO: confirm this)
       sql = 'INSERT INTO ' + ATTACH_STORE +
-      ' (digest, body, escaped) VALUES (?,?,1)';
-      tx.executeSql(sql, [digest, escapeBlob(data)], function () {
+        ` (digest, body, escaped) VALUES (?,?,${shouldEscape ? 1 : 0})`;
+      tx.executeSql(sql, [digest, shouldEscape ? escapeBlob(data) : data,], function () {
         callback();
       }, function () {
         // ignore constaint errors, means it already exists

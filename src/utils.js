@@ -7,11 +7,15 @@ import {
   ATTACH_AND_SEQ_STORE
 } from './constants';
 
-// escapeBlob and unescapeBlob are workarounds for a websql bug:
-// https://code.google.com/p/chromium/issues/detail?id=422690
-// https://bugs.webkit.org/show_bug.cgi?id=137637
-// The goal is to never actually insert the \u0000 character
-// in the database.
+/**
+ * escapeBlob and unescapeBlob are workarounds for a websql bug:
+ * https://code.google.com/p/chromium/issues/detail?id=422690
+ * https://bugs.webkit.org/show_bug.cgi?id=137637
+ * The goal is to never actually insert the \u0000 character
+ * in the database.
+ * @param {string} str 
+ * @returns 
+ */
 function escapeBlob(str) {
   /* eslint-disable no-control-regex */
   return str
@@ -21,6 +25,11 @@ function escapeBlob(str) {
   /* eslint-enable no-control-regex */
 }
 
+/**
+ * Reverse of escapeBlob
+ * @param {string} str 
+ * @returns 
+ */
 function unescapeBlob(str) {
   /* eslint-disable no-control-regex */
   return str
@@ -45,7 +54,11 @@ function unstringifyDoc(doc, id, rev) {
   return doc;
 }
 
-// question mark groups IN queries, e.g. 3 -> '(?,?,?)'
+/**
+ * question mark groups IN queries, e.g. 3 -> '(?,?,?)'
+ * @param {number} num Number of question marks in parenthesis group
+ * @returns 
+ */
 function qMarks(num) {
   var s = '(';
   while (num--) {
@@ -57,12 +70,21 @@ function qMarks(num) {
   return s + ')';
 }
 
+/**
+ * Creates a SQL `SELECT` statement according to arguments provided.
+ * @param {string} selector The selector to select from the table
+ * @param {string|string[]} table The table name
+ * @param {string|null} joiner The joining operator
+ * @param {string|string[]} where The `where` condition(s)
+ * @param {string|null|undefined} orderBy (optional) The order by clause
+ * @returns 
+ */
 function select(selector, table, joiner, where, orderBy) {
   return 'SELECT ' + selector + ' FROM ' +
     (typeof table === 'string' ? table : table.join(' JOIN ')) +
     (joiner ? (' ON ' + joiner) : '') +
     (where ? (' WHERE ' +
-    (typeof where === 'string' ? where : where.join(' AND '))) : '') +
+      (typeof where === 'string' ? where : where.join(' AND '))) : '') +
     (orderBy ? (' ORDER BY ' + orderBy) : '');
 }
 
@@ -154,7 +176,7 @@ function websqlError(callback) {
     guardedConsole('error', 'WebSQL threw an error', event);
     // event may actually be a SQLError object, so report is as such
     var errorNameMatch = event && event.constructor.toString()
-        .match(/function ([^(]+)/);
+      .match(/function ([^(]+)/);
     var errorName = (errorNameMatch && errorNameMatch[1]) || event.type;
     var errorReason = event.target || event.message;
     callback(createError(WSQ_ERROR, errorReason, errorName));

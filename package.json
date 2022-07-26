@@ -1,6 +1,6 @@
 {
   "name": "@switt/pouchdb-adapter-websql-rn-core",
-  "version": "7.2.3",
+  "version": "7.2.4-alpha1",
   "description": "Underlying adapter code for WebSQL and SQLite-based PouchDB adapters. (Modified slightly for React Native)",
   "main": "./src/index.js",
   "keywords": [],
