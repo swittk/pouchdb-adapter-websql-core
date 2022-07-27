@@ -28,7 +28,9 @@ import {
 
 import parseHexString from './parseHex';
 import websqlBulkDocs from './bulkDocs';
-
+import {
+  webSqlCheckResults
+} from './checkResults';
 import {
   MISSING_DOC,
   REV_CONFLICT,
@@ -128,7 +130,19 @@ function WebSqlPouch(opts, callback) {
   var instanceId = null;
   var size = getSize(opts);
   var idRequests = [];
+  /** 
+   * @type {'UTF-8'|'UTF-16'} the encoding used by the backing WebSQL type.
+   * This variable is assigned in `checkEncoding()` in the setup process
+   */
   var encoding;
+  /**
+   * If the WebSQL database supports null values when reading TEXT columns.
+   * This check is needed due to a WebSQL bug (that will likely not be fixed) in both WebKit and Chrome.
+   * https://bugs.chromium.org/p/chromium/issues/detail?id=422690
+   * https://bugs.webkit.org/show_bug.cgi?id=137637
+   * However; our react-native version is fixed, and we'd prefer not to encode/decode hex everytime ;)
+   */
+  var supportsNull = false;
 
   api._name = opts.name;
 
@@ -406,6 +420,32 @@ function WebSqlPouch(opts, callback) {
     );
   }
 
+  /**
+   * Checks if the WebSQL implementation has the TEXT column reading bug as in many WebSQL implementations.
+   * Which makes it unable to properly read strings with `NULL` values in them.
+   * https://bugs.chromium.org/p/chromium/issues/detail?id=422690
+   * https://bugs.webkit.org/show_bug.cgi?id=137637
+   * However; I've made a patch to the react-native version at  @ospfranco 's react-native-quick-sqlite
+   * So if the user decides to use that; it should be good!
+   */
+  function checkNullability(tx, cb) {
+    var scratchStore = 'CREATE TABLE IF NOT EXISTS "SCRATCH_STORE" (txt TEXT, int INTEGER, flt FLOAT)';
+    // Create our scratch pad
+    tx.executeSql(scratchStore, [], function (tx, res) {
+      tx.executeSql('DELETE FROM "SCRATCH_STORE"', [], function (tx, res) {
+        tx.executeSql('INSERT INTO "SCRATCH_STORE" (txt) VALUES (?)', [`A\u0000B`], function (tx, res) {
+          tx.executeSql('SELECT txt FROM "SCRATCH_STORE" AS txt', [], function (tx, res) {
+            let gottxt = res.rows.item(0).txt;
+            supportsNull = gottxt.length === 3 ? true : false;
+            webSqlCheckResults.supportsNull = supportsNull;
+            console.log('supports null?', supportsNull);
+            cb();
+          });
+        });
+      });
+    });
+  }
+
   function onGetInstanceId() {
     while (idRequests.length > 0) {
       var idCallback = idRequests.pop();
@@ -499,8 +539,11 @@ function WebSqlPouch(opts, callback) {
     db.transaction(function (tx) {
       // first check the encoding
       checkEncoding(tx, function () {
-        // then get the version
-        fetchVersion(tx);
+        // then check the nullability
+        checkNullability(tx, function () {
+          // then get the version
+          fetchVersion(tx);
+        })
       });
     }, websqlError(callback), dbCreated);
   }
@@ -989,7 +1032,7 @@ function WebSqlPouch(opts, callback) {
     var digest = attachment.digest;
     var type = attachment.content_type;
     var sql = 'SELECT escaped, ' +
-      'CASE WHEN escaped = 1 THEN body ELSE HEX(body) END AS body FROM ' +
+      `CASE WHEN escaped = 1 THEN body ELSE ${supportsNull ? 'body' : 'HEX(body)'} END AS body FROM ` +
       ATTACH_STORE + ' WHERE digest=?';
     tx.executeSql(sql, [digest], function (tx, result) {
       // websql has a bug where \u0000 causes early truncation in strings
@@ -998,7 +1041,7 @@ function WebSqlPouch(opts, callback) {
       // and add it back in afterwards
       var item = result.rows.item(0);
       var data = item.escaped ? unescapeBlob(item.body) :
-        parseHexString(item.body, encoding);
+        (supportsNull ? item.body : parseHexString(item.body, encoding));
       if (opts.binary) {
         // The original implementation simply calls `binStringToBluffer()` (exported as binaryStringToBlobOrBuffer) directly from pouchdb-binary-utils
         // Importing from `pouchdb-binary-utils`, we get the `index-browser.js` version since apparently React Native is a browser to the libs.

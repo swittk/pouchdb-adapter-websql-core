@@ -30,14 +30,17 @@ import {
   websqlError,
   escapeBlob
 } from './utils';
+import {
+  webSqlCheckResults
+} from './checkResults';
 
-function isHermesEngine() {
-  return !!((global).HermesInternal);
-}
+// function isHermesEngine() {
+//   return !!((global).HermesInternal);
+// }
 // According to https://github.com/facebook/react-native/issues/24129#issuecomment-787441412
 // Hermes engine supports NULL characters in strings appropriately!
 function needsEscape() {
-  return !isHermesEngine();
+  return webSqlCheckResults.supportsNull == false;
 }
 
 function websqlBulkDocs(dbOpts, req, opts, api, db, websqlChanges, callback) {
