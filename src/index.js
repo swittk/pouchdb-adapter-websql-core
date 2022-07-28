@@ -1039,6 +1039,8 @@ function WebSqlPouch(opts, callback) {
       // and blobs. to work around this, we used to use the hex() function,
       // but that's not performant. after migration 6, we remove \u0000
       // and add it back in afterwards
+      // However, if the database supports storing null values in string (as checked in supportsNull variable),
+      // then we can just not use the hex and just get the original body!
       var item = result.rows.item(0);
       var data = item.escaped ? unescapeBlob(item.body) :
         (supportsNull ? item.body : parseHexString(item.body, encoding));
